@@ -26,6 +26,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "rabcl/component/jga25_370.hpp"
+
+#include <stdio.h>
+#include <string.h>
 
 /* USER CODE END Includes */
 
@@ -47,6 +51,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+uint16_t control_count = 0;
+uint16_t can_count = 0;
+char printf_buf[100];
+
+rabcl::JGA25_370* right_motor;
+rabcl::JGA25_370* left_motor;
 
 /* USER CODE END PV */
 
@@ -58,6 +68,91 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+int16_t read_tim2_encoder_value()
+{
+  uint16_t enc_buff = TIM2->CNT;
+  int16_t enc_count = (int16_t)enc_buff - 32767;
+  TIM2->CNT = 32767;
+  return enc_count;
+}
+
+int16_t read_tim3_encoder_value()
+{
+  uint16_t enc_buff = TIM3->CNT;
+  int16_t enc_count = (int16_t)enc_buff - 32767;
+  TIM3->CNT = 32767;
+  return enc_count;
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim == &htim15)
+  {
+    control_count++;
+    if (control_count >= 10) // 100Hz
+    {
+      control_count = 0;
+      int16_t output;
+
+      // right motor
+      right_motor->SetEncoderCount(read_tim2_encoder_value());
+      right_motor->UpdataEncoder();
+      snprintf(printf_buf, 100, "right_act_vel: %f[rad/s]\n", right_motor->GetActVel());
+      HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+
+      output = right_motor->CalcMotorOutput();
+      // snprintf(printf_buf, 100, "right_output: %d[count]\n", output);
+      // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+      if (output > 0)
+      {
+        HAL_GPIO_WritePin(RIGHT_MOTOR_PAHSE_GPIO_Port, RIGHT_MOTOR_PAHSE_Pin, GPIO_PIN_SET);
+      }
+      else
+      {
+        output *= -1;
+        HAL_GPIO_WritePin(RIGHT_MOTOR_PAHSE_GPIO_Port, RIGHT_MOTOR_PAHSE_Pin, GPIO_PIN_RESET);
+      }
+
+      __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, (uint16_t)output);
+      HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+      // snprintf(printf_buf, 100, "right_cmd_vel: %f[rad/s]\n", right_motor->GetCmdVel());
+      // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+
+      // left motor
+      left_motor->SetEncoderCount(read_tim3_encoder_value());
+      left_motor->UpdataEncoder();
+      snprintf(printf_buf, 100, "left_act_vel: %f[rad/s]\n", left_motor->GetActVel());
+      HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+
+      output = left_motor->CalcMotorOutput();
+      // snprintf(printf_buf, 100, "left_output: %d[count]\n", output);
+      // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+      if (output > 0)
+      {
+        HAL_GPIO_WritePin(LEFT_MOTOR_PAHSE_GPIO_Port, LEFT_MOTOR_PAHSE_Pin, GPIO_PIN_SET);
+      }
+      else
+      {
+        output *= -1;
+        HAL_GPIO_WritePin(LEFT_MOTOR_PAHSE_GPIO_Port, LEFT_MOTOR_PAHSE_Pin, GPIO_PIN_RESET);
+      }
+
+      __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, (uint16_t)output);
+      HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+      // snprintf(printf_buf, 100, "left_cmd_vel: %f[rad/s]\n", left_motor->GetCmdVel());
+      // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+    }
+
+    // ---can
+    can_count++;
+    if (can_count >= 25) // 40Hz
+    {
+      can_count = 0;
+      right_motor->SetCmdVel(0.0);
+      left_motor->SetCmdVel(0.0);
+    }
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -69,6 +164,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  right_motor = new rabcl::JGA25_370(1000 - 1, 34.0);
+  left_motor = new rabcl::JGA25_370(1000 - 1, 34.0);
 
   /* USER CODE END 1 */
 
@@ -98,6 +195,10 @@ int main(void)
   MX_TIM15_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start_IT(&htim15);
+  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+  HAL_CAN_Start(&hcan);
 
   /* USER CODE END 2 */
 
@@ -107,6 +208,7 @@ int main(void)
   {
     /* USER CODE END WHILE */
     HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
