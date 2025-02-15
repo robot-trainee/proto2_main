@@ -26,6 +26,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "rabcl/utils/type.hpp"
+#include "rabcl/interface/can.hpp"
 #include "rabcl/component/jga25_370.hpp"
 
 #include <stdio.h>
@@ -55,6 +57,7 @@ uint16_t control_count = 0;
 uint16_t can_count = 0;
 char printf_buf[100];
 
+rabcl::Info robot_data;
 rabcl::JGA25_370* right_motor;
 rabcl::JGA25_370* left_motor;
 
@@ -97,8 +100,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       // right motor
       right_motor->SetEncoderCount(read_tim2_encoder_value());
       right_motor->UpdataEncoder();
-      snprintf(printf_buf, 100, "right_act_vel: %f[rad/s]\n", right_motor->GetActVel());
-      HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+      // snprintf(printf_buf, 100, "right_act_vel: %f[rad/s]\n", right_motor->GetActVel());
+      // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
 
       output = right_motor->CalcMotorOutput();
       // snprintf(printf_buf, 100, "right_output: %d[count]\n", output);
@@ -121,8 +124,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       // left motor
       left_motor->SetEncoderCount(read_tim3_encoder_value());
       left_motor->UpdataEncoder();
-      snprintf(printf_buf, 100, "left_act_vel: %f[rad/s]\n", left_motor->GetActVel());
-      HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+      // snprintf(printf_buf, 100, "left_act_vel: %f[rad/s]\n", left_motor->GetActVel());
+      // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
 
       output = left_motor->CalcMotorOutput();
       // snprintf(printf_buf, 100, "left_output: %d[count]\n", output);
@@ -150,6 +153,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       can_count = 0;
       right_motor->SetCmdVel(0.0);
       left_motor->SetCmdVel(0.0);
+    }
+  }
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+  CAN_RxHeaderTypeDef RxHeader;
+  uint8_t RxData[8];
+  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
+  {
+    if (rabcl::Can::UpdateData(RxHeader.StdId, RxData, robot_data))
+    {
+      HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
     }
   }
 }
@@ -199,6 +215,10 @@ int main(void)
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
   HAL_CAN_Start(&hcan);
+  if (HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
   /* USER CODE END 2 */
 
@@ -207,7 +227,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
 
     /* USER CODE BEGIN 3 */
   }

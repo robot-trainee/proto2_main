@@ -54,7 +54,25 @@ void MX_CAN_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN_Init 2 */
+  CAN_FilterTypeDef  filter;
+  uint32_t fId = 0x710 << 21;
+  uint32_t fMask = (0x7F0 << 21) | 0x4;
 
+  filter.FilterIdHigh         = fId >> 16;
+  filter.FilterIdLow          = fId;
+  filter.FilterMaskIdHigh     = fMask >> 16;
+  filter.FilterMaskIdLow      = fMask;
+  filter.FilterScale          = CAN_FILTERSCALE_32BIT;
+  filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  filter.FilterBank           = 0;
+  filter.FilterMode           = CAN_FILTERMODE_IDMASK;
+  filter.SlaveStartFilterBank = 14;
+  filter.FilterActivation     = ENABLE;
+
+  if (HAL_CAN_ConfigFilter(&hcan, &filter) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE END CAN_Init 2 */
 
 }
@@ -83,6 +101,9 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* canHandle)
     GPIO_InitStruct.Alternate = GPIO_AF9_CAN;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+    /* CAN interrupt Init */
+    HAL_NVIC_SetPriority(CAN_RX0_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(CAN_RX0_IRQn);
   /* USER CODE BEGIN CAN_MspInit 1 */
 
   /* USER CODE END CAN_MspInit 1 */
@@ -106,6 +127,8 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* canHandle)
     */
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11|GPIO_PIN_12);
 
+    /* CAN interrupt Deinit */
+    HAL_NVIC_DisableIRQ(CAN_RX0_IRQn);
   /* USER CODE BEGIN CAN_MspDeInit 1 */
 
   /* USER CODE END CAN_MspDeInit 1 */
