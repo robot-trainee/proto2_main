@@ -29,6 +29,7 @@
 #include "rabcl/utils/type.hpp"
 #include "rabcl/interface/can.hpp"
 #include "rabcl/component/jga25_370.hpp"
+#include "rabcl/controller/omni_drive.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -54,12 +55,12 @@
 
 /* USER CODE BEGIN PV */
 uint16_t control_count = 0;
-uint16_t can_count = 0;
 char printf_buf[100];
 
 rabcl::Info robot_data;
 rabcl::JGA25_370* right_motor;
 rabcl::JGA25_370* left_motor;
+rabcl::OmniDrive omni_drive(0.06, 0.28);
 
 /* USER CODE END PV */
 
@@ -95,9 +96,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if (control_count >= 10) // 100Hz
     {
       control_count = 0;
+      double chassis_vel[4];
+      omni_drive.CalcVel(
+        robot_data.chassis_vel_x_, robot_data.chassis_vel_y_, robot_data.chassis_vel_z_,
+        chassis_vel[0], chassis_vel[1], chassis_vel[2], chassis_vel[3]);
+      right_motor->SetCmdVel(chassis_vel[0]);
+      left_motor->SetCmdVel(chassis_vel[1]);
+
       int16_t output;
 
-      // right motor
+      // ---right motor
       right_motor->SetEncoderCount(read_tim2_encoder_value());
       right_motor->UpdataEncoder();
       // snprintf(printf_buf, 100, "right_act_vel: %f[rad/s]\n", right_motor->GetActVel());
@@ -121,7 +129,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       // snprintf(printf_buf, 100, "right_cmd_vel: %f[rad/s]\n", right_motor->GetCmdVel());
       // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
 
-      // left motor
+      // ---left motor
       left_motor->SetEncoderCount(read_tim3_encoder_value());
       left_motor->UpdataEncoder();
       // snprintf(printf_buf, 100, "left_act_vel: %f[rad/s]\n", left_motor->GetActVel());
@@ -144,15 +152,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
       // snprintf(printf_buf, 100, "left_cmd_vel: %f[rad/s]\n", left_motor->GetCmdVel());
       // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
-    }
-
-    // ---can
-    can_count++;
-    if (can_count >= 25) // 40Hz
-    {
-      can_count = 0;
-      right_motor->SetCmdVel(0.0);
-      left_motor->SetCmdVel(0.0);
     }
   }
 }
