@@ -125,7 +125,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       }
 
       __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, (uint16_t)output);
-      HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
       // snprintf(printf_buf, 100, "right_cmd_vel: %f[rad/s]\n", right_motor->GetCmdVel());
       // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
 
@@ -149,7 +148,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       }
 
       __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, (uint16_t)output);
-      HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
       // snprintf(printf_buf, 100, "left_cmd_vel: %f[rad/s]\n", left_motor->GetCmdVel());
       // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
     }
@@ -210,6 +208,11 @@ int main(void)
   MX_TIM15_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  // ---start PWM
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+
+  // ---start interrupt processing
   HAL_TIM_Base_Start_IT(&htim15);
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
