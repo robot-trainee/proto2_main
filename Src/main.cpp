@@ -110,6 +110,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       right_motor->UpdataEncoder();
       // snprintf(printf_buf, 100, "right_act_vel: %f[rad/s]\n", right_motor->GetActVel());
       // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+      // snprintf(printf_buf, 100, "right_act_pos: %f[rad], %f[deg]\n", right_motor->GetActPos(), right_motor->GetActPos() * 57.295779513);
+      // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
 
       output = right_motor->CalcMotorOutput();
       // snprintf(printf_buf, 100, "right_output: %d[count]\n", output);
@@ -132,6 +134,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       left_motor->SetEncoderCount(read_tim3_encoder_value());
       left_motor->UpdataEncoder();
       // snprintf(printf_buf, 100, "left_act_vel: %f[rad/s]\n", left_motor->GetActVel());
+      // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
+      // snprintf(printf_buf, 100, "left_act_pos: %f[rad], %f[deg]\n", left_motor->GetActPos(), left_motor->GetActPos() * 57.295779513);
       // HAL_UART_Transmit(&huart2, (uint8_t*)printf_buf, strlen(printf_buf), 1000);
 
       output = left_motor->CalcMotorOutput();
@@ -213,7 +217,6 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
   // ---start interrupt processing
-  HAL_TIM_Base_Start_IT(&htim15);
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
   HAL_CAN_Start(&hcan);
@@ -221,6 +224,9 @@ int main(void)
   {
     Error_Handler();
   }
+  TIM2->CNT = 32767;
+  TIM3->CNT = 32767;
+  HAL_TIM_Base_Start_IT(&htim15);
 
   /* USER CODE END 2 */
 
